@@ -53,7 +53,7 @@ var JSON = `{"birth": 673675640,
   "phone": "8(984)8611629",
   "sex": "m",
   "sname": "Пенетасян",
-  "status": "всё сложно"}`
+    "status": "всё сложно"}`
 
 func TestJsonParser(t *testing.T) {
     var a Account
@@ -62,3 +62,25 @@ func TestJsonParser(t *testing.T) {
         t.Error("Json parsing error")
     }
 }
+
+func TestGetAccountMiddle(t *testing.T) {
+    testString := "sdfsfsdfsdfsdf"
+    if checkString := getAccount(testString); checkString != testString {
+        t.Error("Middle check failed")
+    }
+}
+
+func TestGetAccountNoRight(t *testing.T) {
+    testString := "sdfs{fsdfsdfsdf"
+    if checkString := getAccount(testString); checkString != "{fsdfsdfsdf" {
+        t.Error("No right } check failed")
+    }
+}
+
+func TestGetAccountRigthAndLeft(t *testing.T) {
+    testString := "sdfs{fsdfsdf}sdf"
+    if checkString := getAccount(testString); checkString != "{fsdfsdf}" {
+        t.Error("Middle {} check failed: %s", checkString)
+    }
+}
+
