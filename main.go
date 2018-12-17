@@ -8,7 +8,6 @@ import (
 	"strings"
 )
 
-
 type Like struct {
 	Id uint32 `json:"id"`
 	Ts uint32 `json:"ts"`
@@ -34,7 +33,6 @@ type Accounts struct {
 	Accounts []Account `json:"accounts"`
 }
 
-
 func readChunk(jsonFile *os.File) {
 	for {
 		var b []byte
@@ -52,7 +50,6 @@ func toJson(rawJson string) {
 	fmt.Printf("Wow: %s\n", rawJson)
 }
 
-
 func main() {
 	// var accounts Accounts
 
@@ -68,66 +65,63 @@ func main() {
 	}
 
 	var jsonStorage strings.Builder
-	var leftIndex, rightIndex, currentIndex, startIndex, depth int 
+	var leftIndex, rightIndex, searchStart, jsonStart, depth int
 	var tail string
-	b := make([]byte, 4)
+	b := make([]byte, 64)
 
-	currentIndex = -1
+	searchStart = 0
 	depth = 0
 	for {
-		_, err = jsonFile.Read(b)
-		if err == io.EOF {
-			break
+
+		// read next chunk only we haven't any "{" or "}" in current data
+		if s := jsonStorage.String(); !strings.ContainsAny(s[searchStart:], "{}") {
+			_, err = jsonFile.Read(b)
+			if err == io.EOF {
+				break
+			}
+			jsonStorage.Write(b)
 		}
 
-		jsonStorage.Write(b)
-		fmt.Printf("%d %s\n", len(jsonStorage.String()), jsonStorage.String())
-
-		leftIndex  = strings.Index(jsonStorage.String()[currentIndex+1:], "{")
-		rightIndex = strings.Index(jsonStorage.String()[currentIndex+1:], "}")
+		leftIndex = strings.Index(jsonStorage.String()[searchStart:], "{")
+		rightIndex = strings.Index(jsonStorage.String()[searchStart:], "}")
 
 		if depth == 0 && leftIndex > -1 {
-			startIndex = leftIndex
+			jsonStart = leftIndex
 		}
 
-		fmt.Printf("left = %d, right = %d, currentIndex = %d\n", leftIndex, rightIndex, currentIndex)
-
-		if leftIndex > -1 && rightIndex > -1 {  // both "{" and "}" were found
-			if leftIndex < rightIndex {
-				currentIndex = leftIndex
+		if leftIndex > -1 && rightIndex > -1 { // both "{" and "}" were found
+			if leftIndex < rightIndex { // found "{" before "}", it means next level of json
+				searchStart = searchStart + leftIndex + 1
 				depth++
 				continue
 			}
-			if leftIndex > rightIndex {
-				currentIndex = rightIndex
+			if leftIndex > rightIndex { // found "}" before "{", it means return to previous level
+				searchStart = searchStart + rightIndex + 1
 				depth--
 			}
 		}
 
-		if leftIndex > -1 && rightIndex == -1 {  // only "{" was found
-			// ToDo: add here new chunk of file to b
-			currentIndex = leftIndex
+		if leftIndex > -1 && rightIndex == -1 { // only "{" was found
+			searchStart = searchStart + leftIndex + 1
 			depth++
-			fmt.Printf("depth++ = %d\n", depth)
 			continue
 		}
 
-		if leftIndex == -1 && rightIndex > -1 {  // only "}" was found
-			currentIndex = rightIndex
+		if leftIndex == -1 && rightIndex > -1 { // only "}" was found
+			searchStart = searchStart + rightIndex + 1
 			depth--
 		}
 
-		if depth == 0 {  //we've found json here
-			fmt.Printf("JSON: %s\n", jsonStorage.String()[startIndex:rightIndex+startIndex+2])
-			tail = jsonStorage.String()[rightIndex+startIndex+2:]
+		if depth == 0 { // we've complete json here in the jsonStorage[jsonStart:searchStart]
+			fmt.Printf("JSON: %s\n", jsonStorage.String()[jsonStart:searchStart])
+
+			tail = jsonStorage.String()[searchStart:]
 			jsonStorage.Reset()
 			jsonStorage.WriteString(tail)
-			currentIndex = -1
-			leftIndex = -1
-			rightIndex = -1
 
-			fmt.Printf("tail=\"%s\" jsonStorage=\"%s\"\n", tail, jsonStorage.String())			
-		}			
+			jsonStart = 0
+			searchStart = 0
+		}
 
 	}
 	//err = json.Unmarshal([]byte(rawData), &accounts)
