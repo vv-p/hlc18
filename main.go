@@ -8,11 +8,16 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"fmt"
 
 	"github.com/julienschmidt/httprouter"
 )
 
-const BaseDir = "/tmp/out"
+const (
+	BaseDir = "/tmp/out"
+	Delimeter = "/"
+	httpPort = ":80"
+)
 
 type Like struct {
 	Id uint32 `json:"id"`
@@ -149,7 +154,7 @@ func main() {
 
 	for _, file := range files {
 		if strings.Contains(file.Name(), "accounts") {
-			parseJson(strings.Join([]string{BaseDir, file.Name()}, "/"), &accounts)
+			parseJson(strings.Join([]string{BaseDir, file.Name()}, Delimeter), &accounts)
 		}
 	}
 
@@ -157,63 +162,88 @@ func main() {
 	log.Printf("Starting http server\n")
 
 	router := httprouter.New() // https://github.com/julienschmidt/httprouter
-	router.GET("/", Index)
-
-	// Readers
-	// http.HandleFunc("/accounts/filter/", accountsFilter)
-	// http.HandleFunc("/accounts/group/", accountsGroup)
-
-	// Writers
-	// http.HandleFunc("/accounts/new/", accountsNew)
-	// http.HandleFunc("/accounts/likes/", accountsLikes)
 
 	// Default 404 page
-	// http.HandleFunc("/", defaultNotFound)
+	router.GET("/", defaultNotFound)
 
-	log.Fatal(http.ListenAndServe(":80", router))
+	// Readers
+	// It's not possible to register wildcard route here without some tricks
+	// See https://github.com/julienschmidt/httprouter/issues/175 for details
+	router.GET("/accounts/:id/", getMultiplexer)
+	router.GET("/accounts/:id/recommend/", accountsRecommend)
+	router.GET("/accounts/:id/suggest/", accountsSuggest)
+
+	// Writers
+	router.POST("/accounts/:id/", postMultiplexer)
+	
+	log.Fatal(http.ListenAndServe(httpPort, router))
+}
+
+
+
+func getMultiplexer(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	// filter and group
+
+	switch ps.ByName("id") {
+	case "filter":
+		accountsFilter(w, r, ps)
+	case "group":
+		accountsGroup(w, r, ps)
+	default:
+		defaultNotFound(w, r, ps)
+	}
+}
+
+func postMultiplexer(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	// new, likes and id
+
+	switch ps.ByName("id") {
+	case "new":
+		accountsNew(w, r, ps)
+	case "likes":
+		accountsLikes(w, r, ps)
+	default:
+		accountsId(w, r, ps)
+	}
 }
 
 // Readers
 
-func accountsFilter(res http.ResponseWriter, req *http.Request) {
-	log.Printf("%s\n", req.URL.Path)
-	http.NotFound(res, req)
+func accountsFilter(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	fmt.Fprintf(w, "{\"accounts\": [ ]}")
 }
 
-func accountsGroup(res http.ResponseWriter, req *http.Request) {
-	log.Printf("%s\n", req.URL.Path)
-	http.NotFound(res, req)
+func accountsGroup(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	fmt.Fprintf(w, "{\"groups\": [ ]}")
 }
 
-func accountsRecommend(res http.ResponseWriter, req *http.Request) {
-	log.Printf("%s\n", req.URL.Path)
-	http.NotFound(res, req)
+func accountsRecommend(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	fmt.Fprintf(w, "{\"accounts\": [ ]}")
 }
 
-func accountsSuggest(res http.ResponseWriter, req *http.Request) {
-	log.Printf("%s\n", req.URL.Path)
-	http.NotFound(res, req)
+func accountsSuggest(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	fmt.Fprintf(w, "{\"accounts\": [ ]}")
 }
 
 // Writers
 
-func accountsNew(res http.ResponseWriter, req *http.Request) {
-	log.Printf("%s\n", req.URL.Path)
-	http.NotFound(res, req)
+func accountsNew(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	fmt.Fprintf(w, "{}")
+	w.WriteHeader(http.StatusCreated)
 }
 
-func accountsId(res http.ResponseWriter, req *http.Request) {
-	log.Printf("%s\n", req.URL.Path)
-	http.NotFound(res, req)
+func accountsId(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	fmt.Fprintf(w, "{}")
+	w.WriteHeader(http.StatusAccepted)
 }
 
-func accountsLikes(res http.ResponseWriter, req *http.Request) {
-	log.Printf("%s\n", req.URL.Path)
-	http.NotFound(res, req)
+func accountsLikes(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	fmt.Fprintf(w, "{}")
+	w.WriteHeader(http.StatusAccepted)
 }
 
 // Default 404 page
 func defaultNotFound(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	log.Printf("%s\n", req.URL.Path)
-	http.NotFound(res, req)
+	log.Printf("request: %s\n", r.URL.Path)
+	http.NotFound(w, r)
 }
