@@ -1,12 +1,15 @@
 package main
 
 import (
-	"fmt"
+	"encoding/json"
 	"io"
+	"io/ioutil"
 	"log"
 	"os"
 	"strings"
 )
+
+const BaseDir = "/tmp/out"
 
 type Like struct {
 	Id uint32 `json:"id"`
@@ -30,30 +33,29 @@ type Account struct {
 }
 
 type Accounts struct {
-	Accounts []Account `json:"accounts"`
+	accounts map[uint32]Account
 }
 
-func readChunk(jsonFile *os.File) {
-	for {
-		var b []byte
-
-		n, err := jsonFile.Read(b)
-
-		if err == io.EOF {
-			fmt.Printf("EOF: n=%d\n", n)
-			break
-		}
-	}
+func getNewAccounts() Accounts {
+	return Accounts{accounts: map[uint32]Account{}}
 }
 
-func toJson(rawJson string) {
-	fmt.Printf("Wow: %s\n", rawJson)
+func (a *Accounts) Add(account Account) {
+	a.accounts[account.Id] = account
 }
 
-func main() {
-	// var accounts Accounts
+func (a *Accounts) Get(id uint32) Account {
+	return a.accounts[id]
+}
 
-	jsonFile, err := os.Open("data/accounts_1.json")
+func (a *Accounts) Len() int {
+	return len(a.accounts)
+}
+
+func parseJson(filename string, accounts *Accounts) {
+	var account Account
+
+	jsonFile, err := os.Open(filename)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -113,7 +115,14 @@ func main() {
 		}
 
 		if depth == 0 { // we've complete json here in the jsonStorage[jsonStart:searchStart]
-			fmt.Printf("JSON: %s\n", jsonStorage.String()[jsonStart:searchStart])
+			jsonReady := jsonStorage.String()[jsonStart:searchStart]
+			err = json.Unmarshal([]byte(jsonReady), &account)
+
+			if err != nil {
+				log.Panic(err)
+			}
+
+			accounts.Add(account)
 
 			tail = jsonStorage.String()[searchStart:]
 			jsonStorage.Reset()
@@ -122,12 +131,23 @@ func main() {
 			jsonStart = 0
 			searchStart = 0
 		}
-
 	}
-	//err = json.Unmarshal([]byte(rawData), &accounts)
-	//if err != nil {
-	//	log.Panic(err)
-	//}
 
-	//fmt.Printf("Accounts[0] = %s\n", accounts.Accounts[1])
+}
+
+func main() {
+	accounts := getNewAccounts()
+
+	files, err := ioutil.ReadDir(BaseDir)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for _, file := range files {
+		if strings.Contains(file.Name(), "accounts") {
+			parseJson(strings.Join([]string{BaseDir, file.Name()}, "/"), &accounts)
+		}
+	}
+
+	log.Printf("Accounts total: %d\n", accounts.Len())
 }
