@@ -5,8 +5,11 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"strings"
+
+	"github.com/julienschmidt/httprouter"
 )
 
 const BaseDir = "/tmp/out"
@@ -55,6 +58,7 @@ func (a *Accounts) Len() int {
 func parseJson(filename string, accounts *Accounts) {
 	var account Account
 
+	// ToDo: add bufio.Reader to read from json file
 	jsonFile, err := os.Open(filename)
 	if err != nil {
 		log.Panic(err)
@@ -150,4 +154,66 @@ func main() {
 	}
 
 	log.Printf("Accounts total: %d\n", accounts.Len())
+	log.Printf("Starting http server\n")
+
+	router := httprouter.New() // https://github.com/julienschmidt/httprouter
+	router.GET("/", Index)
+
+	// Readers
+	// http.HandleFunc("/accounts/filter/", accountsFilter)
+	// http.HandleFunc("/accounts/group/", accountsGroup)
+
+	// Writers
+	// http.HandleFunc("/accounts/new/", accountsNew)
+	// http.HandleFunc("/accounts/likes/", accountsLikes)
+
+	// Default 404 page
+	// http.HandleFunc("/", defaultNotFound)
+
+	log.Fatal(http.ListenAndServe(":80", router))
+}
+
+// Readers
+
+func accountsFilter(res http.ResponseWriter, req *http.Request) {
+	log.Printf("%s\n", req.URL.Path)
+	http.NotFound(res, req)
+}
+
+func accountsGroup(res http.ResponseWriter, req *http.Request) {
+	log.Printf("%s\n", req.URL.Path)
+	http.NotFound(res, req)
+}
+
+func accountsRecommend(res http.ResponseWriter, req *http.Request) {
+	log.Printf("%s\n", req.URL.Path)
+	http.NotFound(res, req)
+}
+
+func accountsSuggest(res http.ResponseWriter, req *http.Request) {
+	log.Printf("%s\n", req.URL.Path)
+	http.NotFound(res, req)
+}
+
+// Writers
+
+func accountsNew(res http.ResponseWriter, req *http.Request) {
+	log.Printf("%s\n", req.URL.Path)
+	http.NotFound(res, req)
+}
+
+func accountsId(res http.ResponseWriter, req *http.Request) {
+	log.Printf("%s\n", req.URL.Path)
+	http.NotFound(res, req)
+}
+
+func accountsLikes(res http.ResponseWriter, req *http.Request) {
+	log.Printf("%s\n", req.URL.Path)
+	http.NotFound(res, req)
+}
+
+// Default 404 page
+func defaultNotFound(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	log.Printf("%s\n", req.URL.Path)
+	http.NotFound(res, req)
 }
