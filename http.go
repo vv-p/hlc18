@@ -25,8 +25,7 @@ func buildResponse(as []*Account) []byte {
 	response = append(response, "{\"accounts\": ["...)
 
 	for _, a := range as {
-		id := strconv.Itoa(int(a.Id))
-		response = append(response, id...)
+		response = strconv.AppendUint(response, uint64(a.Id), 10)
 		response = append(response, ", "...)
 	}
 
