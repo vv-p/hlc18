@@ -11,8 +11,9 @@ import (
 )
 
 var (
-	indexId  = MakeIndexId()
-	indexSex = MakeIndexSex()
+	indexId    = MakeIndexId()
+	indexSex   = MakeIndexSex()
+	statusDict = MakeStatusDict()
 )
 
 const (
@@ -29,7 +30,7 @@ type (
 		Ts uint32    `json:"ts"`
 	}
 
-	Account struct {
+	Account struct { // for parsing json
 		Birth     uint32    `json:"birth"`
 		City      string    `json:"city"`
 		Country   string    `json:"country"`
@@ -43,6 +44,22 @@ type (
 		Sex       string    `json:"sex"`
 		Sname     string    `json:"sname"`
 		Status    string    `json:"status"`
+	}
+
+	AccountModel struct { // for saving account data in memory
+		Birth     uint32
+		City      string
+		Country   string
+		Email     string
+		Fname     string
+		Id        AccountId
+		Interests []string
+		Joined    uint32
+		Likes     []Like
+		Phone     string
+		Sex       string
+		Sname     string
+		Status    int
 	}
 )
 
