@@ -3,7 +3,7 @@ GOCMD=go
 GOBUILD=$(GOCMD) build
 GORUN=$(GOCMD) run
 BINARY_NAME=app
-SOURCES=main.go index_id.go index_sex.go http.go
+SOURCES=main.go index_id.go index_sex.go index_status.go http.go
 
 
 build:
