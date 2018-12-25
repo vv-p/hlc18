@@ -32,3 +32,15 @@ func (s *IndexSex) Get(sex string, limit uint64) []*Account {
 	}
 	return s.m[:limit]
 }
+
+func (s *IndexSex) Filter(accounts []*Account, sex string) []*Account {
+	out := make([]*Account, 0, len(accounts)/2) // assume half of all accounts are male or female
+
+	for _, a := range accounts {
+		if a.Sex == sex {
+			out = append(out, a)
+		}
+	}
+
+	return out
+}
