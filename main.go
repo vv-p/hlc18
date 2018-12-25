@@ -8,60 +8,62 @@ import (
 	"net/http"
 	"os"
 	"strings"
-	"fmt"
+)
 
-	"github.com/julienschmidt/httprouter"
+var (
+	indexId    = MakeIndexId()
+	indexSex   = MakeIndexSex()
+	statusDict = MakeStatusDict()
 )
 
 const (
-	BaseDir = "/tmp/out"
+	BaseDir   = "data"
 	Delimeter = "/"
-	httpPort = ":80"
+	httpPort  = ":80"
 )
 
-type Like struct {
-	Id uint32 `json:"id"`
-	Ts uint32 `json:"ts"`
-}
+type (
+	AccountId uint32
 
-type Account struct {
-	Birth     uint32   `json:"birth"`
-	City      string   `json:"city"`
-	Country   string   `json:"country"`
-	Email     string   `json:"email"`
-	Fname     string   `json:"fname"`
-	Id        uint32   `json:"id"`
-	Interests []string `json:"interests"`
-	Joined    uint32   `json:"joined"`
-	Likes     []Like   `json:"likes"`
-	Phone     string   `json:"phone"`
-	Sex       string   `json:"sex"`
-	Sname     string   `json:"sname"`
-	Status    string   `json:"status"`
-}
+	Like struct {
+		Id AccountId `json:"id"`
+		Ts uint32    `json:"ts"`
+	}
 
-type Accounts struct {
-	accounts map[uint32]Account
-}
+	Account struct { // for parsing json
+		Birth     uint32    `json:"birth"`
+		City      string    `json:"city"`
+		Country   string    `json:"country"`
+		Email     string    `json:"email"`
+		Fname     string    `json:"fname"`
+		Id        AccountId `json:"id"`
+		Interests []string  `json:"interests"`
+		Joined    uint32    `json:"joined"`
+		Likes     []Like    `json:"likes"`
+		Phone     string    `json:"phone"`
+		Sex       string    `json:"sex"`
+		Sname     string    `json:"sname"`
+		Status    string    `json:"status"`
+	}
 
-func getNewAccounts() Accounts {
-	return Accounts{accounts: map[uint32]Account{}}
-}
+	AccountModel struct { // for saving account data in memory
+		Birth     uint32
+		City      string
+		Country   string
+		Email     string
+		Fname     string
+		Id        AccountId
+		Interests []string
+		Joined    uint32
+		Likes     []Like
+		Phone     string
+		Sex       string
+		Sname     string
+		Status    int
+	}
+)
 
-func (a *Accounts) Add(account Account) {
-	a.accounts[account.Id] = account
-}
-
-func (a *Accounts) Get(id uint32) Account {
-	return a.accounts[id]
-}
-
-func (a *Accounts) Len() int {
-	return len(a.accounts)
-}
-
-func parseJson(filename string, accounts *Accounts) {
-	var account Account
+func parseJson(filename string) {
 
 	// ToDo: add bufio.Reader to read from json file
 	jsonFile, err := os.Open(filename)
@@ -125,13 +127,16 @@ func parseJson(filename string, accounts *Accounts) {
 
 		if depth == 0 { // we've complete json here in the jsonStorage[jsonStart:searchStart]
 			jsonReady := jsonStorage.String()[jsonStart:searchStart]
+
+			account := Account{}
 			err = json.Unmarshal([]byte(jsonReady), &account)
 
 			if err != nil {
 				log.Panic(err)
 			}
 
-			accounts.Add(account)
+			indexId.Add(&account)
+			indexSex.Add(&account)
 
 			tail = jsonStorage.String()[searchStart:]
 			jsonStorage.Reset()
@@ -145,7 +150,6 @@ func parseJson(filename string, accounts *Accounts) {
 }
 
 func main() {
-	accounts := getNewAccounts()
 
 	files, err := ioutil.ReadDir(BaseDir)
 	if err != nil {
@@ -154,96 +158,13 @@ func main() {
 
 	for _, file := range files {
 		if strings.Contains(file.Name(), "accounts") {
-			parseJson(strings.Join([]string{BaseDir, file.Name()}, Delimeter), &accounts)
+			parseJson(strings.Join([]string{BaseDir, file.Name()}, Delimeter))
 		}
 	}
 
-	log.Printf("Accounts total: %d\n", accounts.Len())
+	log.Printf("Accounts total: %d\n", indexId.Len())
 	log.Printf("Starting http server\n")
 
-	router := httprouter.New() // https://github.com/julienschmidt/httprouter
-
-	// Default 404 page
-	router.GET("/", defaultNotFound)
-
-	// Readers
-	// It's not possible to register wildcard route here without some tricks
-	// See https://github.com/julienschmidt/httprouter/issues/175 for details
-	router.GET("/accounts/:id/", getMultiplexer)
-	router.GET("/accounts/:id/recommend/", accountsRecommend)
-	router.GET("/accounts/:id/suggest/", accountsSuggest)
-
-	// Writers
-	router.POST("/accounts/:id/", postMultiplexer)
-	
-	log.Fatal(http.ListenAndServe(httpPort, router))
-}
-
-
-
-func getMultiplexer(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	// filter and group
-
-	switch ps.ByName("id") {
-	case "filter":
-		accountsFilter(w, r, ps)
-	case "group":
-		accountsGroup(w, r, ps)
-	default:
-		defaultNotFound(w, r, ps)
-	}
-}
-
-func postMultiplexer(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	// new, likes and id
-
-	switch ps.ByName("id") {
-	case "new":
-		accountsNew(w, r, ps)
-	case "likes":
-		accountsLikes(w, r, ps)
-	default:
-		accountsId(w, r, ps)
-	}
-}
-
-// Readers
-
-func accountsFilter(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	fmt.Fprintf(w, "{\"accounts\": [ ]}")
-}
-
-func accountsGroup(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	fmt.Fprintf(w, "{\"groups\": [ ]}")
-}
-
-func accountsRecommend(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	fmt.Fprintf(w, "{\"accounts\": [ ]}")
-}
-
-func accountsSuggest(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	fmt.Fprintf(w, "{\"accounts\": [ ]}")
-}
-
-// Writers
-
-func accountsNew(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	fmt.Fprintf(w, "{}")
-	w.WriteHeader(http.StatusCreated)
-}
-
-func accountsId(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	fmt.Fprintf(w, "{}")
-	w.WriteHeader(http.StatusAccepted)
-}
-
-func accountsLikes(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	fmt.Fprintf(w, "{}")
-	w.WriteHeader(http.StatusAccepted)
-}
-
-// Default 404 page
-func defaultNotFound(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	log.Printf("request: %s\n", r.URL.Path)
-	http.NotFound(w, r)
+	http.HandleFunc("/", httpMultiplexer)
+	log.Fatal(http.ListenAndServe(httpPort, nil))
 }

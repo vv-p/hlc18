@@ -1,8 +1,7 @@
 FROM golang:latest
 
 WORKDIR /go/src/github.com/vv-p/hlc18/
-COPY main.go .
-RUN go get github.com/julienschmidt/httprouter
+COPY main.go index_id.go index_sex.go http.go ./
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o app .
 
 
