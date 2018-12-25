@@ -8,7 +8,7 @@ SOURCES=main.go index_id.go index_sex.go index_status.go http.go
 
 
 build:
-		$(GOBUILD) $(SOURCES) -o $(BINARY_NAME) -v -a 
+		$(GOBUILD) -o $(BINARY_NAME) $(SOURCES) 
 
 image:
 		docker build -t stor.highloadcup.ru/accounts/clear_albatross .
